@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CyberJustice // AI 法律公正终端</title>
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.8.0/dist/web3.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto+Mono:wght@300;500&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --neon-cyan: #00f3ff;
+            --neon-pink: #ff0055;
+            --neon-purple: #bc13fe;
+            --bg-dark: #030610;
+            --panel-bg: rgba(10, 15, 30, 0.85);
+            --border-color: rgba(0, 243, 255, 0.3);
+            --text-main: #e0f7ff;
+        }
+
+        /* === 基础样式 === */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: var(--neon-cyan); border-radius: 3px; }
+
+        body {
+            margin: 0; font-family: 'Roboto Mono', monospace; background-color: var(--bg-dark);
+            background-image: linear-gradient(rgba(0, 243, 255, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 243, 255, 0.05) 1px, transparent 1px);
+            background-size: 40px 40px; color: var(--text-main); height: 100vh; overflow: hidden;
+        }
+
+        .app-container {
+            display: grid; grid-template-columns: 350px 1fr; gap: 20px;
+            height: 100vh; padding: 20px; box-sizing: border-box; max-width: 1600px; margin: 0 auto;
+        }
+
+        .panel {
+            background: var(--panel-bg); border: 1px solid var(--border-color);
+            border-radius: 12px; padding: 25px; backdrop-filter: blur(10px);
+            display: flex; flex-direction: column; overflow: hidden; position: relative;
+        }
+
+        .control-panel h1 {
+            font-size: 1.5rem; background: linear-gradient(90deg, var(--neon-cyan), #fff);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            margin-bottom: 20px; border-bottom: 2px solid var(--border-color); padding-bottom: 15px; font-family: 'Orbitron';
+        }
+
+        .cyber-input {
+            width: 100%; padding: 12px; background: rgba(0,0,0,0.5);
+            border: 1px solid #333; color: #fff; border-radius: 4px; box-sizing: border-box; margin-bottom: 10px;
+        }
+
+        .btn-main {
+            width: 100%; padding: 12px; background: rgba(0, 243, 255, 0.1);
+            border: 1px solid var(--neon-cyan); color: var(--neon-cyan);
+            font-family: 'Orbitron'; cursor: pointer; transition: 0.3s; text-transform: uppercase;
+        }
+        .btn-main:hover { background: var(--neon-cyan); color: #000; box-shadow: 0 0 15px var(--neon-cyan); }
+        .btn-main:disabled { opacity: 0.3; }
+
+        /* === AI 助手样式 === */
+        #aiAssistantView { display: flex; flex-direction: column; height: 100%; width: 100%; max-width: 900px; margin: 0 auto; }
+        #chatHistory { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 15px; border: 1px solid var(--border-color); background: rgba(0,0,0,0.2); border-radius: 8px; }
+        .bubble { padding: 12px 16px; border-radius: 8px; font-size: 0.9rem; max-width: 80%; line-height: 1.5; }
+        .ai-bubble { align-self: flex-start; background: rgba(0, 243, 255, 0.05); border: 1px solid var(--neon-cyan); color: var(--neon-cyan); }
+        .user-bubble { align-self: flex-end; background: rgba(188, 19, 254, 0.1); border: 1px solid var(--neon-purple); color: #fff; }
+        
+        /* === 标签页样式 === */
+        .view-tabs { display: flex; background: rgba(0,0,0,0.3); border-bottom: 1px solid var(--border-color); }
+        .tab-btn { flex: 1; padding: 20px; background: transparent; border: none; color: #555; font-family: 'Orbitron'; cursor: pointer; }
+        .tab-btn.active { color: var(--neon-cyan); background: rgba(0,243,255,0.1); box-shadow: inset 0 -3px 0 var(--neon-cyan); }
+
+        .viewport { padding: 30px; flex: 1; overflow-y: auto; position: relative; display: flex; flex-direction: column; }
+
+        /* === 存证确权证书 (专业白底样式) === */
+        #certificateWrapper { 
+            display: none; /* 初始隐藏 */
+            background: #fff; padding: 40px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            margin: 0 auto;
+        }
+
+        #certificateView {
+            width: 700px; padding: 50px 60px; background: #fff; color: #333;
+            border: 8px solid #1a5599; position: relative; font-family: "Microsoft YaHei", sans-serif;
+        }
+
+        .cert-header { text-align: center; margin-bottom: 40px; }
+        .cert-header h2 { color: #1a5599; font-size: 32px; letter-spacing: 4px; margin: 0; }
+        .cert-header p { font-size: 12px; color: #888; margin-top: 5px; }
+        
+        .cert-row { display: flex; margin-bottom: 15px; align-items: flex-start; }
+        .cert-label { width: 100px; font-weight: bold; color: #444; font-size: 14px; }
+        .cert-value { flex: 1; font-family: 'Roboto Mono', monospace; font-size: 14px; word-break: break-all; }
+        
+        .highlight-box { background: #fdf2f4; padding: 2px 8px; border-radius: 2px; color: #d63384; }
+
+        .cert-stamp {
+            position: absolute; bottom: 60px; right: 50px; width: 150px; height: 150px;
+            border: 4px solid rgba(230, 0, 50, 0.5); border-radius: 50%;
+            display: flex; align-items: center; justify-content: center; text-align: center;
+            color: rgba(230, 0, 50, 0.5); font-weight: bold; font-size: 18px;
+            transform: rotate(-15deg); pointer-events: none;
+        }
+        .cert-stamp::after { content: "区块链存证\A 正式有效"; white-space: pre; line-height: 1.2; }
+
+        .cert-footer { margin-top: 50px; border-top: 1px solid #eee; padding-top: 15px; font-size: 11px; color: #999; }
+
+        /* 加载动画 */
+        .loading-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.8); z-index: 100; display: none; align-items: center; justify-content: center; flex-direction: column; }
+        .spinner { width: 40px; height: 40px; border: 3px solid transparent; border-top: 3px solid var(--neon-cyan); border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <div class="panel control-panel">
+        <h1>CyberJustice</h1>
+        
+        <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+            <button onclick="showView('main')" class="btn-main" style="flex: 1; font-size: 0.7rem;">✚ 新存证</button>
+            <button onclick="showView('vault')" class="btn-main" style="flex: 1; font-size: 0.7rem;">📂 证据库</button>
+        </div>
+
+        <div id="mainForm">
+            <div style="background:rgba(255,255,255,0.05); padding:15px; border-radius:8px; margin-bottom:20px;">
+                <label style="font-size:0.7rem; color:var(--neon-cyan)">WALLET STATUS</label>
+                <div id="walletDisplay" style="color:#888; margin-top:5px;">🔴 DISCONNECTED</div>
+                <button id="connectBtn" class="btn-main" style="margin-top:10px; font-size:0.8rem;">LINK METAMASK</button>
+            </div>
+
+            <form id="evidenceForm">
+                <label style="font-size:0.7rem;">EVIDENCE FILE</label>
+                <input type="file" id="evidenceFile" class="cyber-input" required>
+                <label style="font-size:0.7rem;">DESCRIPTION</label>
+                <textarea id="description" class="cyber-input" rows="3" placeholder="输入事实说明..."></textarea>
+                <button type="submit" id="submitBtn" class="btn-main" disabled>🚀 立即上链</button>
+            </form>
+        </div>
+
+        <div id="vaultView" style="display:none;">
+            <h3 style="font-size:0.9rem; color:var(--neon-cyan)">HISTORY RECORDS</h3>
+            <div id="vaultList" style="display: flex; flex-direction: column; gap: 10px; margin-top: 15px;"></div>
+        </div>
+    </div>
+
+    <div class="panel result-panel">
+        <div class="view-tabs">
+            <button class="tab-btn active" onclick="switchTab('ai-assistant')">🤖 AI 法律助手</button>
+            <button class="tab-btn" onclick="switchTab('certificate')">💾 存证证书</button>
+        </div>
+
+        <div class="viewport" id="viewport">
+            <div id="loading" class="loading-overlay"><div class="spinner"></div><p>正在与以太坊网络共识...</p></div>
+
+            <div id="aiAssistantView">
+                <div id="chatHistory">
+                    <div class="bubble ai-bubble">你好！我是 SpoonOS 法律助手。我可以为您检索法律条文，或直接根据您的指令进行区块链存证。</div>
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 15px;">
+                    <input type="text" id="chatInput" class="cyber-input" style="margin-bottom:0;" placeholder="输入问题或存证指令..." onkeypress="if(event.keyCode==13) sendMessage()">
+                    <button onclick="sendMessage()" class="btn-main" style="width:100px;">发送</button>
+                </div>
+            </div>
+
+            <div id="certificateWrapper">
+                <div id="certificateView">
+                    <div class="cert-header">
+                        <h2>存证确权证书</h2>
+                        <p>DATA TRUST & BLOCKCHAIN CERTIFICATION</p>
+                        <div style="width: 100%; height: 1px; background: #eee; margin-top: 20px;"></div>
+                    </div>
+
+                    <div class="cert-body">
+                        <div class="cert-row">
+                            <div class="cert-label">证据文件：</div>
+                            <div class="cert-value" id="certFileName">--</div>
+                        </div>
+                        <div class="cert-row">
+                            <div class="cert-label">存证编号：</div>
+                            <div class="cert-value highlight-box" id="certTx">--</div>
+                        </div>
+                        <div class="cert-row">
+                            <div class="cert-label">内容指纹：</div>
+                            <div class="cert-value highlight-box" id="certHash">--</div>
+                        </div>
+                        <div class="cert-row">
+                            <div class="cert-label">确权时间：</div>
+                            <div class="cert-value" id="certTime">--</div>
+                        </div>
+                        <div class="cert-row">
+                            <div class="cert-label">存证账户：</div>
+                            <div class="cert-value" id="certOwner">--</div>
+                        </div>
+                        <div class="cert-row">
+                            <div class="cert-label">网络状态：</div>
+                            <div class="cert-value">Sepolia / 以太坊节点已确认</div>
+                        </div>
+                    </div>
+
+                    <div class="cert-stamp"></div>
+                    <div class="cert-footer">
+                        * 本证书由程序自动生成并实时写入以太坊 Sepolia 测试网。区块链存证具有不可篡改性，可作为电子数据原始性证明。
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <button id="downloadBtn" class="btn-main" style="display:none; width:200px; position:absolute; bottom:20px; right:20px;" onclick="downloadCert()">💾 下载证书 PNG</button>
+    </div>
+</div>
+
+<script>
+    let userAddress = null;
+
+    // === 视图切换 ===
+    function showView(v) {
+        document.getElementById('mainForm').style.display = v === 'main' ? 'block' : 'none';
+        document.getElementById('vaultView').style.display = v === 'vault' ? 'block' : 'none';
+        if(v === 'vault') renderVault();
+    }
+
+    function switchTab(tab) {
+        document.querySelectorAll('.tab-btn').forEach((b, i) => b.classList.toggle('active', (tab==='ai-assistant'?0:1)===i));
+        document.getElementById('aiAssistantView').style.display = tab === 'ai-assistant' ? 'flex' : 'none';
+        document.getElementById('certificateWrapper').style.display = tab === 'certificate' ? 'block' : 'none';
+        
+        const hasData = document.getElementById('certHash').innerText !== '--';
+        document.getElementById('downloadBtn').style.display = (tab === 'certificate' && hasData) ? 'block' : 'none';
+    }
+
+    // === AI 聊天逻辑 ===
+    async function sendMessage() {
+        const input = document.getElementById('chatInput');
+        const history = document.getElementById('chatHistory');
+        const msg = input.value.trim();
+        if(!msg) return;
+
+        history.innerHTML += `<div class="bubble user-bubble">${msg}</div>`;
+        input.value = '';
+        history.scrollTop = history.scrollHeight;
+
+        const loadingId = 'ai-load-' + Date.now();
+        history.innerHTML += `<div id="${loadingId}" class="bubble ai-bubble" style="opacity:0.6">正在分析法律库...</div>`;
+        history.scrollTop = history.scrollHeight;
+
+        try {
+            const res = await fetch('http://localhost:5000/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: msg })
+            });
+            const data = await res.json();
+            document.getElementById(loadingId).remove();
+            history.innerHTML += `<div class="bubble ai-bubble">${data.response || data.error}</div>`;
+        } catch (e) {
+            document.getElementById(loadingId).innerText = "连接后端失败，请检查 Agent 服务。";
+        }
+        history.scrollTop = history.scrollHeight;
+    }
+
+    // === 钱包与存证逻辑 ===
+    document.getElementById('connectBtn').onclick = async () => {
+        if(window.ethereum) {
+            const accs = await window.ethereum.request({ method: 'eth_requestAccounts' });
+            userAddress = accs[0];
+            document.getElementById('walletDisplay').innerHTML = `<span style="color:var(--neon-cyan)">🟢 ${userAddress.substring(0,12)}...</span>`;
+            document.getElementById('connectBtn').style.display = 'none';
+            document.getElementById('submitBtn').disabled = false;
+        }
+    };
+
+    document.getElementById('evidenceForm').onsubmit = async (e) => {
+        e.preventDefault();
+        document.getElementById('loading').style.display = 'flex';
+        
+        const file = document.getElementById('evidenceFile').files[0];
+        const formData = new FormData();
+        formData.append('evidence_file', file);
+        formData.append('description', document.getElementById('description').value);
+        formData.append('user_address', userAddress);
+
+        try {
+            const res = await fetch('http://localhost:5000/api/upload-evidence', { method: 'POST', body: formData });
+            const data = await res.json();
+            if(data.success) {
+                updateCertificate(data, file.name);
+                saveLocal(data, file.name);
+                switchTab('certificate');
+            }
+        } catch (err) { alert("上链失败，请检查后端。"); }
+        document.getElementById('loading').style.display = 'none';
+    };
+
+    function updateCertificate(data, fileName) {
+        document.getElementById('certFileName').innerText = fileName;
+        document.getElementById('certOwner').innerText = userAddress;
+        document.getElementById('certTime').innerText = data.timestamp;
+        document.getElementById('certHash').innerText = data.evidence_hash;
+        document.getElementById('certTx').innerText = data.tx_hash;
+        document.getElementById('downloadBtn').style.display = 'block';
+    }
+
+    // === 证据库本地存储 ===
+    function saveLocal(data, name) {
+        let vault = JSON.parse(localStorage.getItem('cyber_vault') || '[]');
+        vault.unshift({ ...data, fileName: name, user: userAddress });
+        localStorage.setItem('cyber_vault', JSON.stringify(vault.slice(0, 10)));
+    }
+
+    function renderVault() {
+        const list = document.getElementById('vaultList');
+        const vault = JSON.parse(localStorage.getItem('cyber_vault') || '[]');
+        list.innerHTML = vault.map(item => `
+            <div style="background:rgba(255,255,255,0.05); padding:10px; border-radius:4px; cursor:pointer; font-size:0.7rem;" onclick='loadHistory(${JSON.stringify(item)})'>
+                <div style="color:var(--neon-cyan)">${item.fileName}</div>
+                <div style="color:#666; font-size:0.6rem;">${item.timestamp}</div>
+            </div>
+        `).join('');
+    }
+
+    window.loadHistory = (item) => {
+        userAddress = item.user;
+        updateCertificate(item, item.fileName);
+        switchTab('certificate');
+        showView('main');
+    };
+
+    // 导出证书为图片
+    async function downloadCert() {
+        const target = document.getElementById('certificateView');
+        const canvas = await html2canvas(target, {
+            backgroundColor: "#ffffff",
+            scale: 2 // 提升清晰度
+        });
+        const link = document.createElement('a');
+        link.download = `SpoonOS_Cert_${Date.now()}.png`;
+        link.href = canvas.toDataURL("image/png");
+        link.click();
+    }
+</script>
+</body>
+</html>
