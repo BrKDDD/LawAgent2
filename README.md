@@ -102,7 +102,7 @@
 
 ### 1. 环境要求
 
-- Python >= 3.9
+- Python >= 3.12
 - 已配置 DeepSeek API Key（或兼容 OpenAI 的 API）
 
 ### 2. 安装依赖
